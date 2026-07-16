@@ -1,110 +1,59 @@
-# Chrono Crash - Full-stack Crash Game
+# Chrono Crash
 
-Chrono Crash e um Crash Game full-stack com dois bounded contexts, comunicacao
-financeira via RabbitMQ, Keycloak como IdP, Kong como API Gateway, frontend
-React/Vite responsivo e uma suite de qualidade automatizada cobrindo dominio,
-API, Docker, browser e UI.
+A multiplayer crash game. A multiplier climbs from `1.00x` and stops at a point that was already decided before the betting window opened, and that you can verify yourself once the round is over. You bet, then cash out before the crash or lose the bet.
 
-## Stack
+Under the hood it is two NestJS services with separate databases. They settle money through RabbitMQ and push round state to every connected client over WebSocket.
 
-| Camada | Implementacao |
-| --- | --- |
-| Runtime | Bun |
-| Backend | NestJS + TypeScript strict |
-| Bancos | PostgreSQL com bancos separados `games` e `wallets` |
-| ORM | Prisma |
-| Mensageria | RabbitMQ |
-| API Gateway | Kong DB-less |
-| IdP | Keycloak realm `crash-game` |
-| Realtime | Socket.IO via `@nestjs/websockets` |
-| Frontend | Vite + React + Tailwind CSS v4 |
-| Estado | TanStack Query + Zustand |
-| Testes | Bun test, Vitest e Playwright |
-| Docs API | Swagger/OpenAPI |
-| Observabilidade | Prometheus, Grafana, Jaeger e OpenTelemetry |
+## Quickstart
 
-## Como rodar
-
-Pre-requisitos:
-
-- Bun 1.x
-- Docker e Docker Compose
-
-Instalacao:
+You need Bun 1.x and Docker with Compose.
 
 ```bash
 bun install
-```
-
-Subir a stack completa:
-
-```bash
 bun run docker:up
 ```
 
-O script acima executa `docker compose up --build` e fica em primeiro plano.
-Para uso local em segundo plano, o equivalente e:
+Open `http://localhost:8000` and sign in as `player` / `player123`. The account starts with R$ 1.000,00.
+
+There are no manual setup steps. Keycloak imports its realm on boot, Kong loads its config, and both services run `prisma migrate deploy` before serving traffic. `docker:up` stays in the foreground; add `-d` to the compose command if you want it detached.
 
 ```bash
-docker compose up -d --build
+bun run docker:down    # stop the stack
+bun run docker:prune   # wipe containers, volumes and local images
 ```
 
-Parar a stack:
+## Stack
 
-```bash
-bun run docker:down
-```
-
-Reset completo de containers, volumes e imagens locais do projeto:
-
-```bash
-bun run docker:prune
-```
-
-Use `docker:prune` somente quando quiser apagar o estado local de banco e
-fila.
-
-## URLs e credenciais
-
-| Recurso | URL | Credenciais |
-| --- | --- | --- |
-| Aplicacao via Kong | `http://localhost:8000/` | login pelo botao `Entrar` |
-| Game Service via Kong | `http://localhost:8000/games/*` | conforme rota |
-| Wallet Service via Kong | `http://localhost:8000/wallets/*` | conforme rota |
-| Game Swagger direto | `http://localhost:4001/docs` | publico |
-| Wallet Swagger direto | `http://localhost:4002/docs` | publico |
-| Keycloak admin | `http://localhost:8080/admin/master/console/` | `admin` / `admin` |
-| RabbitMQ Management | `http://localhost:15672` | `admin` / `admin` |
-| Prometheus | `http://localhost:9090` | publico local |
-| Grafana | `http://localhost:3001` | `admin` / `admin` |
-| Jaeger | `http://localhost:16686` | publico local |
-
-Usuario de teste:
-
-| Campo | Valor |
+| Layer | Choice |
 | --- | --- |
-| Realm | `crash-game` |
-| Client ID | `crash-game-client` |
-| Usuario | `player` |
-| Senha | `player123` |
-| Wallet inicial | `100000` centavos, equivalente a R$ 1.000,00 |
+| Runtime | Bun |
+| Backend | NestJS + TypeScript strict |
+| Databases | PostgreSQL, separate `games` and `wallets` databases |
+| ORM | Prisma |
+| Messaging | RabbitMQ |
+| API Gateway | Kong DB-less |
+| IdP | Keycloak, realm `crash-game` |
+| Realtime | Socket.IO via `@nestjs/websockets` |
+| Frontend | Vite + React + Tailwind CSS v4 |
+| Client state | TanStack Query + Zustand |
+| Tests | Bun test, Vitest, Playwright |
+| API docs | Swagger/OpenAPI |
+| Observability | Prometheus, Grafana, Jaeger, OpenTelemetry |
 
-## Guia rapido para avaliadores
+## Features
 
-Ao abrir `http://localhost:8000/`, a aplicacao exibe uma chamada discreta para
-avaliadores. O botao `Ver guia` abre a barra lateral de auditoria no painel de
-entrega.
+- Round lifecycle: betting window, multiplier climb, crash, settlement.
+- Provably fair crash points that any player can verify after the round.
+- Realtime sync over WebSocket. Two tabs show the same round at the same time.
+- Transactional outbox in the game and inbox in the wallet, so money commands survive redelivery without double-spending.
+- Auto cashout at a target multiplier, configured per bet.
+- Auto bet with fixed and Martingale strategies, plus stop-loss and take-profit.
+- Leaderboard ranked by net profit.
+- Rate limiting on bet, cashout and wallet routes at the gateway.
+- Metrics, dashboards and traces for bet volume, payouts, RTP and event latency.
+- Deterministic seeding for reproducible E2E runs.
 
-Essa barra agrupa os atalhos mais uteis para revisar o desafio:
-
-- entrega, README e repositorio no GitHub;
-- usuario de teste e credenciais dos dashboards locais;
-- Swagger, metricas, Grafana, Prometheus, Jaeger, RabbitMQ, Kong e Keycloak;
-- evidencias dos fluxos E2E, provably fair e consistencia financeira.
-
-Depois de fechada ou usada, a chamada nao volta a aparecer no mesmo navegador.
-
-## Arquitetura
+## Architecture
 
 ```text
 Frontend React/Vite
@@ -116,242 +65,151 @@ Game Service (NestJS)            Wallet Service (NestJS)
   |                              |
   +------ RabbitMQ wallet.commands ------+
 
-Keycloak emite JWTs; Game e Wallet validam Bearer tokens via JWKS.
+Keycloak issues JWTs; both services validate Bearer tokens via JWKS.
 ```
 
-O Game Service e dono de rodada, aposta, cashout, leaderboard, auto bet,
-auto cashout, provably fair e eventos realtime. O Wallet Service e dono do
-saldo, ledger financeiro, debitos, creditos e idempotencia financeira.
+The game service owns rounds, bets, cashouts, the leaderboard, auto bet, provably fair and realtime events. The wallet service owns balances, the ledger and financial idempotency. Each service has its own database and neither reads the other's tables.
 
-O Game nunca altera saldo diretamente. Operacoes financeiras passam pelo
-RabbitMQ com comandos `wallet.debit` e `wallet.credit`. O fluxo usa outbox no
-Game e inbox no Wallet para manter idempotencia e tolerar reentregas.
+Both follow the same layering: `domain`, `application`, `infrastructure`, `presentation`.
 
-## Dinheiro e multiplicadores
+## Design decisions
 
-Dinheiro nunca usa ponto flutuante.
+### The game never writes a balance
 
-- Valores monetarios sao armazenados como `BigInt`/`BIGINT` em centavos.
-- A API serializa dinheiro como string para evitar perda de precisao em JSON.
-- `100` representa R$ 1,00.
-- Aposta minima: `100` centavos.
-- Aposta maxima: `100000` centavos.
+Every debit and credit goes through RabbitMQ as a `wallet.debit` or `wallet.credit` command. The game writes the command to an outbox table in the same transaction that records the bet; the wallet keeps an inbox so a redelivered command is processed once. This is what keeps the two services consistent without a distributed transaction or an HTTP call between them.
 
-Multiplicadores usam basis points:
+I used request/reply over the broker for interactive operations like placing a bet, since the player needs an answer. The alternative was exposing the wallet over HTTP to the game, which would have coupled them.
 
-- `10000` representa `1.00x`.
-- `25000` representa `2.50x`.
-- Payout: `floor(amountCents * multiplierBp / 10000)`.
+### Money is never a float
 
-## Provably fair
+Balances and bets are `BigInt`/`BIGINT` in cents, and the API serializes them as strings so JSON cannot round them. `100` is R$ 1,00. Minimum bet is `100` cents, maximum is `100000`.
 
-Cada rodada tem commitment antes da revelacao:
+### Multipliers are basis points
 
-- `serverSeedHash` fica publico antes e durante a rodada.
-- `serverSeed` e `crashPointBp` so sao revelados depois do crash.
-- O crash point e calculado com hash chain + HMAC SHA-256, `clientSeed`,
-  `nonce` e house edge.
-- `GET /games/rounds/:roundId/verify` recalcula o resultado e retorna se a
-  rodada e verificavel.
+`10000` is `1.00x` and `25000` is `2.50x`. Payout is `floor(amountCents * multiplierBp / 10000)`, integer math start to finish.
 
-Arquivos principais:
+### Provably fair
+
+Each round commits before it reveals. `serverSeedHash` is public before and during the round; `serverSeed` and `crashPointBp` only appear after the crash. The crash point comes from a hash chain and HMAC SHA-256 over the client seed, a nonce and the house edge. `GET /games/rounds/:roundId/verify` recalculates the result so a player does not have to trust the server.
+
+Start here to read it:
 
 - `services/games/src/domain/provably-fair.ts`
 - `services/games/src/application/use-cases/verify-round.use-case.ts`
 - `services/games/tests/unit/domain/game-domain.test.ts`
-- `services/games/tests/e2e/cashout-flow.e2e.test.ts`
-- `services/games/tests/e2e/crash-loss-flow.e2e.test.ts`
 
 ## API
 
-Todas as rotas principais sao acessadas via Kong em `http://localhost:8000`.
+Everything is reachable through Kong at `http://localhost:8000`.
 
 ### Wallet
 
-| Metodo | Rota | Auth | Descricao |
+| Method | Route | Auth | Description |
 | --- | --- | --- | --- |
-| `POST` | `/wallets` | sim | Cria a wallet do jogador autenticado |
-| `GET` | `/wallets/me` | sim | Retorna saldo do jogador autenticado |
-| `GET` | `/wallets/health` | nao | Healthcheck |
-| `GET` | `/wallets/metrics` | nao | Metricas Prometheus |
+| `POST` | `/wallets` | yes | Create the authenticated player's wallet |
+| `GET` | `/wallets/me` | yes | Balance of the authenticated player |
+| `GET` | `/wallets/health` | no | Healthcheck |
+| `GET` | `/wallets/metrics` | no | Prometheus metrics |
 
-Debito e credito nao sao expostos por REST. Eles acontecem via RabbitMQ.
+Debit and credit are not REST routes. They only happen over RabbitMQ.
 
 ### Game
 
-| Metodo | Rota | Auth | Descricao |
+| Method | Route | Auth | Description |
 | --- | --- | --- | --- |
-| `GET` | `/games/rounds/current` | nao | Rodada atual |
-| `GET` | `/games/rounds/history` | nao | Historico de rodadas |
-| `GET` | `/games/rounds/:roundId/verify` | nao | Verificacao provably fair |
-| `GET` | `/games/bets/me` | sim | Historico de apostas do jogador |
-| `POST` | `/games/bet` | sim | Faz uma aposta |
-| `POST` | `/games/bet/cashout` | sim | Executa cashout |
-| `GET` | `/games/leaderboard` | nao | Ranking por lucro liquido |
-| `POST` | `/games/auto-bet/sessions` | sim | Inicia auto bet |
-| `GET` | `/games/auto-bet/sessions/me` | sim | Consulta auto bet do jogador |
-| `POST` | `/games/auto-bet/sessions/me/stop` | sim | Para auto bet ativo |
-| `GET` | `/games/health` | nao | Healthcheck |
-| `GET` | `/games/metrics` | nao | Metricas Prometheus |
+| `GET` | `/games/rounds/current` | no | Current round |
+| `GET` | `/games/rounds/history` | no | Round history |
+| `GET` | `/games/rounds/:roundId/verify` | no | Provably fair verification |
+| `GET` | `/games/bets/me` | yes | Player's bet history |
+| `POST` | `/games/bet` | yes | Place a bet |
+| `POST` | `/games/bet/cashout` | yes | Cash out |
+| `GET` | `/games/leaderboard` | no | Ranking by net profit |
+| `POST` | `/games/auto-bet/sessions` | yes | Start auto bet |
+| `GET` | `/games/auto-bet/sessions/me` | yes | Read the player's auto bet |
+| `POST` | `/games/auto-bet/sessions/me/stop` | yes | Stop the active auto bet |
+| `GET` | `/games/health` | no | Healthcheck |
+| `GET` | `/games/metrics` | no | Prometheus metrics |
 
 ### WebSocket
 
-O WebSocket e usado apenas para server-to-client. Apostas e cashouts continuam
-por REST.
+The socket is server-to-client only. Bets and cashouts stay on REST, and a bet command sent over the socket does not create a bet.
 
-| Campo | Valor |
-| --- | --- |
-| Namespace | `/games` |
-| Path via Kong | `/games/socket.io` |
+Namespace `/games`, path `/games/socket.io` through Kong. Emitted events:
 
-Eventos emitidos:
-
-- `round.snapshot`
-- `round.betting_started`
-- `round.started`
-- `round.tick`
-- `round.crashed`
-- `round.settled`
-- `bet.placed`
-- `bet.cashed_out`
-
-O E2E `services/games/tests/e2e/realtime-websocket.e2e.test.ts` valida duas
-conexoes simultaneas recebendo os mesmos eventos e confirma que comandos de
-aposta enviados pelo socket nao produzem apostas.
+`round.snapshot`, `round.betting_started`, `round.started`, `round.tick`, `round.crashed`, `round.settled`, `bet.placed`, `bet.cashed_out`.
 
 ## Frontend
 
-O frontend entrega a experiencia principal do jogo, sem landing page:
+The app opens straight into the game, no landing page.
 
-- Login Keycloak com authorization code flow + PKCE.
-- Palco 3D com carro, portal, curva do multiplicador e estados de rodada.
-- Controles de aposta, cashout, auto cashout e auto bet Martingale.
-- Historico de rodadas, leaderboard, mesa de apostas e aba provably fair.
-- Saldo e username no header.
-- Dark mode com estetica premium arcade casino em felt green + gold.
-- Responsividade validada por Playwright em mobile, tablet, laptop e desktop.
-- Loading/error states e feedbacks de erro via UI.
+- Keycloak login with authorization code flow and PKCE.
+- A 3D stage with the car, the portal, the multiplier curve and the round states.
+- Bet controls, cashout, auto cashout and Martingale auto bet.
+- Round history, leaderboard, live bet table and a provably fair tab.
+- Dark arcade casino look in felt green and gold.
+- Layouts checked by Playwright on mobile, tablet, laptop and desktop.
 
-Arquivos principais:
+Entry points:
 
 - `frontend/src/components/game/game-dashboard-shell.tsx`
 - `frontend/src/components/game/chrono-stage.tsx`
-- `frontend/src/components/game/crash-flight-scene.tsx`
-- `frontend/src/hooks/use-game-rest.ts`
 - `frontend/src/hooks/use-game-realtime.ts`
 - `frontend/src/stores/game-realtime-store.ts`
 
-## Requisitos eliminatorios do desafio
+## Local dev shortcuts
 
-| Requisito | Status | Evidencia |
+With the stack running, the app has a side rail that collects the links you actually need while developing. The same list, if you prefer the URL bar:
+
+| What | URL | Credentials |
 | --- | --- | --- |
-| `bun run docker:up` sobe tudo sem passo manual | Cumprido | `package.json`, `docker-compose.yml`, Dockerfiles com `prisma migrate deploy`, `bun run ci:e2e` |
-| Gameplay apostar -> multiplicador -> cashout/crash -> liquidacao | Cumprido | `cashout-flow.e2e.test.ts`, `crash-loss-flow.e2e.test.ts`, `player-flow.spec.ts` |
-| Dois servicos separados comunicando via RabbitMQ/SQS | Cumprido | `services/games`, `services/wallets`, `rabbitmq-wallet.client.ts`, `wallet-command-handler.ts` |
-| Sincronizacao em tempo real multiaba | Cumprido | `realtime-websocket.e2e.test.ts` |
-| Precisao monetaria sem ponto flutuante | Cumprido | schemas Prisma com `BigInt`, `Money` domain object, testes de wallet e payout |
-| Autenticacao via IdP e backend validando JWT | Cumprido | Keycloak realm importado, `KeycloakJwtGuard` nos dois servicos, E2E com token real |
-| Testes unitarios + E2E | Cumprido | `bun run ci:local`, `bun run ci:e2e`, `bun run test:e2e:browser` |
+| App via Kong | `http://localhost:8000/` | `player` / `player123` |
+| Game Swagger | `http://localhost:4001/docs` | public |
+| Wallet Swagger | `http://localhost:4002/docs` | public |
+| Game metrics | `http://localhost:8000/games/metrics` | public |
+| Wallet metrics | `http://localhost:8000/wallets/metrics` | public |
+| Grafana | `http://localhost:3001` | `admin` / `admin` |
+| Prometheus | `http://localhost:9090` | public |
+| Jaeger | `http://localhost:16686` | public |
+| RabbitMQ Management | `http://localhost:15672` | `admin` / `admin` |
+| Keycloak admin | `http://localhost:8080/admin/master/console/` | `admin` / `admin` |
 
-## Bonus implementados
-
-- Outbox no Game e inbox no Wallet para comandos financeiros idempotentes.
-- Auto cashout por aposta.
-- Auto bet com estrategia fixed e Martingale, stop-loss e take-profit.
-- Observabilidade com Prometheus, Grafana, Jaeger e OpenTelemetry.
-- Seed deterministica para E2E em `scripts/e2e/prepare-deterministic-state.ts`.
-- Leaderboard por lucro liquido.
-- CI/quality gate com baseline ratchet.
-- Playwright E2E de jogador e responsividade.
-- Rate limiting via Kong em rotas de aposta/cashout/wallet.
-- Formula da curva do multiplicador exibida na UI.
-
-Bonus nao implementados:
-
-- Storybook.
-- Efeitos sonoros.
-
-## Testes e quality gates
-
-Comandos principais:
+## Testing
 
 ```bash
-bun run ci:local
-bun run ci:e2e
-bun run test:e2e:browser
+bun run ci:local         # lint, typecheck, unit, coverage, quality gate, compose config
+bun run ci:e2e           # boots the stack, then API E2E against it
+bun run test:e2e:browser # Playwright against http://localhost:8000
 ```
 
-`bun run ci:local` executa:
-
-- `bun install --frozen-lockfile`
-- lint
-- typecheck dos servicos, frontend e scripts de qualidade
-- unitarios do Game
-- unitarios do Wallet
-- testes do frontend
-- testes dos scripts de qualidade
-- coverage
-- quality gate por baseline
-- `docker compose config`
-
-`bun run ci:e2e` executa:
-
-- `docker compose up -d --build`
-- healthcheck de Kong
-- healthcheck de Keycloak admin
-- E2E de API em `services/games/tests/e2e`
-
-`bun run test:e2e:browser` executa Playwright contra
-`http://localhost:8000`, usando a stack Docker ativa.
-
-Comandos focados:
+Focused runs:
 
 ```bash
 cd services/games && bun test tests/unit
 cd services/wallets && bun test tests/unit
-cd services/games && bun test tests/e2e
+cd services/games && bun test tests/e2e    # needs the stack up
 cd frontend && bun run test
-cd frontend && bun run build
-docker compose config
-git diff --check
 ```
 
-Ultima auditoria local executada em 2026-06-03:
+The quality gate compares coverage and duplication against `quality/baseline.json` and fails if either regresses. Playwright runs with `workers: 1` because every test shares one Docker stack, one Keycloak and one `player` user.
 
-- `bun run ci:local`: passou.
-- `bun run ci:e2e`: passou com 17 testes E2E.
-- `bun run test:e2e:browser`: passou com 7 testes.
-- Quality gate: cobertura global `84.58%`, duplicacao `1.46%`, zero
-  vulnerabilidades high/critical.
+## Code map
 
-## Mapa para avaliador e IA
-
-Comece por estes arquivos se quiser auditar rapido:
-
-- Plano de execucao: `docs/superpowers/specs/2026-05-31-crash-game-execution-plan.md`
-- Issue log: `docs/superpowers/specs/2026-05-31-crash-game-implementation-issue-log.md`
 - Compose: `docker-compose.yml`
 - Kong: `docker/kong/kong.yml`
 - Keycloak realm: `docker/keycloak/realm-export.json`
-- Game schema: `services/games/prisma/schema.prisma`
-- Wallet schema: `services/wallets/prisma/schema.prisma`
-- Game controller: `services/games/src/presentation/controllers/games.controller.ts`
-- Wallet controller: `services/wallets/src/presentation/controllers/wallets.controller.ts`
+- Schemas: `services/games/prisma/schema.prisma`, `services/wallets/prisma/schema.prisma`
+- Controllers: `services/games/src/presentation/controllers/games.controller.ts`, `services/wallets/src/presentation/controllers/wallets.controller.ts`
 - Realtime gateway: `services/games/src/presentation/realtime/rounds.gateway.ts`
 - Wallet messaging: `services/wallets/src/infrastructure/messaging/wallet-command-handler.ts`
 - Browser E2E: `tests/browser/player-flow.spec.ts`
-- Responsividade: `tests/browser/responsive-layout.spec.ts`
-- Quality gate: `quality/baseline.json` e `scripts/quality`
+- Quality gate: `quality/baseline.json`, `scripts/quality`
 
-## Trade-offs
+## Trade-offs and what is missing
 
-- RabbitMQ request/reply foi usado para operacoes financeiras interativas,
-  mantendo comunicacao por broker sem expor a Wallet por HTTP ao Game.
-- O frontend Docker usa Vite dev server para a entrega local do desafio; isso
-  prioriza reproducibilidade local sobre hardening de producao.
-- As rotas `/metrics` ficam publicas para demonstracao local e nao expoem
-  tokens, secrets, URLs de banco ou dados sensiveis.
-- Playwright roda com `workers: 1` porque os testes usam a mesma stack Docker,
-  o mesmo Keycloak e o mesmo usuario `player`.
-- A autenticacao propria nao foi implementada; o projeto usa Keycloak, como
-  permitido pelo desafio.
+The frontend container runs the Vite dev server. That is fine for running this locally and wrong for production.
+
+The `/metrics` routes are open. They expose no tokens, secrets or database URLs, but a real deployment would put them behind auth.
+
+Auth is Keycloak rather than something hand-rolled, so there is no password handling in this codebase at all.
+
+Not built: Storybook, and sound effects for bet, cashout and crash.
