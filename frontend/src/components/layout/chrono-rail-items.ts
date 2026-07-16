@@ -42,19 +42,19 @@ export type RailItem = {
 export const railItems: RailItem[] = [
   {
     copyValue:
-      "Repo: https://github.com/Luizfbm/fullstack-challenge/tree/crash-game-implementation\nApp: http://localhost:8000/\nRun: bun run docker:up",
+      "Repo: https://github.com/Luizfbm/chrono-crash\nApp: http://localhost:8000/\nRun: bun run docker:up",
     description: "Entrada rapida para revisar entrega, README e app pelo Kong.",
     icon: Gauge,
     id: "cockpit",
     links: [
       {
         description: "Branch de entrega publicada para avaliacao.",
-        href: "https://github.com/Luizfbm/fullstack-challenge/tree/crash-game-implementation",
+        href: "https://github.com/Luizfbm/chrono-crash",
         label: "Repositorio GitHub",
       },
       {
         description: "Instrucoes, arquitetura, trade-offs e comandos.",
-        href: "https://github.com/Luizfbm/fullstack-challenge/blob/crash-game-implementation/README.md",
+        href: "https://github.com/Luizfbm/chrono-crash/blob/main/README.md",
         label: "README da entrega",
       },
       {
@@ -139,17 +139,17 @@ export const railItems: RailItem[] = [
     links: [
       {
         description: "Fluxo browser: login, aposta, cashout, auto cashout.",
-        href: "https://github.com/Luizfbm/fullstack-challenge/blob/crash-game-implementation/tests/browser/player-flow.spec.ts",
+        href: "https://github.com/Luizfbm/chrono-crash/blob/main/tests/browser/player-flow.spec.ts",
         label: "Playwright player flow",
       },
       {
         description: "E2E de cashout, wallet, liquidacao e provably fair.",
-        href: "https://github.com/Luizfbm/fullstack-challenge/blob/crash-game-implementation/services/games/tests/e2e/cashout-flow.e2e.test.ts",
+        href: "https://github.com/Luizfbm/chrono-crash/blob/main/services/games/tests/e2e/cashout-flow.e2e.test.ts",
         label: "Cashout E2E",
       },
       {
         description: "E2E de crash, perda da aposta e verificacao da rodada.",
-        href: "https://github.com/Luizfbm/fullstack-challenge/blob/crash-game-implementation/services/games/tests/e2e/crash-loss-flow.e2e.test.ts",
+        href: "https://github.com/Luizfbm/chrono-crash/blob/main/services/games/tests/e2e/crash-loss-flow.e2e.test.ts",
         label: "Crash loss E2E",
       },
     ],
@@ -214,11 +214,6 @@ export const railItems: RailItem[] = [
         description: "Dados de verificacao provably fair da rodada atual.",
         href: "http://localhost:8000/games/rounds/current",
         label: "Round atual",
-      },
-      {
-        description: "Design dos requisitos eliminatorios no README.",
-        href: "https://github.com/Luizfbm/fullstack-challenge/blob/crash-game-implementation/README.md#requisitos-eliminatorios-do-desafio",
-        label: "Checklist no README",
       },
     ],
     title: "Auditoria",
