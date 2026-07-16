@@ -1,9 +1,5 @@
 # Chrono Crash - Full-stack Crash Game
 
-Este e o README final de entrega do desafio. O enunciado original foi
-preservado em [`DESAFIO_ORIGINAL.md`](DESAFIO_ORIGINAL.md) para que o
-avaliador consiga comparar requisito por requisito.
-
 Chrono Crash e um Crash Game full-stack com dois bounded contexts, comunicacao
 financeira via RabbitMQ, Keycloak como IdP, Kong como API Gateway, frontend
 React/Vite responsivo e uma suite de qualidade automatizada cobrindo dominio,
@@ -332,7 +328,6 @@ Ultima auditoria local executada em 2026-06-03:
 
 Comece por estes arquivos se quiser auditar rapido:
 
-- Enunciado original: `DESAFIO_ORIGINAL.md`
 - Plano de execucao: `docs/superpowers/specs/2026-05-31-crash-game-execution-plan.md`
 - Issue log: `docs/superpowers/specs/2026-05-31-crash-game-implementation-issue-log.md`
 - Compose: `docker-compose.yml`
