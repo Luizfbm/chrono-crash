@@ -1,0 +1,10 @@
+services:
+  postgres:
+  rabbitmq:
+  keycloak:
+  games:
+  wallets:
+  kong:
+  prometheus:
+  grafana:
+  jaeger:
